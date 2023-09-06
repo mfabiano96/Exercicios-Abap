@@ -5,6 +5,22 @@
 *&---------------------------------------------------------------------*
 REPORT z_relatorio_mat.
 
+*Relatório de Materiais por Categoria
+*Será necessário criar um relatório que exibirá informações sobre materiais com base em uma categoria específica.
+
+*Tela de Seleção
+*A tela de seleção deverá conter um campo onde o usuário poderá inserir a categoria desejada dos materiais. Este campo deverá ser obrigatório.
+
+*Seleção de Dados
+*Após o usuário inserir a categoria e confirmar, o programa deve buscar os materiais da categoria desejada da tabela MARA (Tabela de Materiais) 
+*com base no campo MTART (Tipo de Material). Com o MATNR (Número do Material), realizar busca na tabela MAKT (Descrições de Material) e 
+*recuperar o valor do campo MAKTX (Descrição do Material).
+
+*Estrutura do ALV
+*- MARA-MATNR;
+*- MARA-MTART;
+*- MAKT-MAKTX;
+*
 TABLES: mara, makt.
 
 TYPES: BEGIN OF ty_output, "Estrutura Tabela de Saída
