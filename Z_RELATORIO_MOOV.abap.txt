@@ -1,0 +1,188 @@
+*&---------------------------------------------------------------------*
+*& Report Z_RELATORIO_MOOV
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT z_relatorio_moov.
+
+*&---------------------------------------------------------------------*
+*&                                TABLES
+*&---------------------------------------------------------------------*
+TABLES: ekko, ekpo.
+
+TYPES: BEGIN OF ty_output, "Estrutura Tabela de Saída
+
+         ebeln TYPE ekko-ebeln,
+         ebelp TYPE ekpo-ebelp,
+         matnr TYPE ekpo-matnr,
+         txz01 TYPE ekpo-txz01,
+         menge TYPE ekpo-menge,
+         meins TYPE ekpo-meins,
+         bedat TYPE ekko-bedat,
+         lifnr TYPE ekko-lifnr,
+         waers TYPE ekko-waers,
+         netpr TYPE ekpo-netpr,
+         price TYPE ekpo-netpr,
+         wkurs TYPE ekko-wkurs,
+
+       END OF ty_output.
+
+DATA: it_output   TYPE TABLE OF ty_output,
+      it_fieldcat TYPE slis_t_fieldcat_alv.
+
+DATA: wa_output   TYPE ty_output,
+      wa_layout   TYPE slis_layout_alv,
+      wa_fieldcat TYPE slis_fieldcat_alv.
+
+INITIALIZATION.
+
+*&---------------------------------------------------------------------*
+*&                           TELA DE SELEÇÃO
+*&---------------------------------------------------------------------*
+
+  SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+
+    SELECT-OPTIONS: s_ebeln FOR ekko-ebeln, " Pedido
+                    s_bsart FOR ekko-bsart, " Tipo
+                    s_matnr FOR ekpo-matnr, " Material
+                    s_lifnr FOR ekko-lifnr, " Fornecedor
+                    s_bedat FOR ekko-bedat, " Data de Remessa
+                    s_waers FOR ekko-waers. " Moeda
+
+  SELECTION-SCREEN END OF BLOCK b1.
+
+START-OF-SELECTION.
+
+*&---------------------------------------------------------------------*
+*&                           FORMS
+*&---------------------------------------------------------------------*
+
+  PERFORM seleciona_dados.
+  PERFORM: zf_estrutura_alv,
+            zf_exibir_alv.
+
+*&---------------------------------------------------------------------*
+*&                           SELEÇÃO DE DADOS
+*&---------------------------------------------------------------------*
+
+FORM seleciona_dados .
+
+  SELECT a~ebeln,
+         a~bedat,
+         a~lifnr,
+         a~waers,
+         a~wkurs,
+         b~ebelp,
+         b~matnr,
+         b~txz01,
+         b~menge,
+         b~meins,
+         b~netpr,
+         ( a~wkurs * b~netpr ) AS price
+    INTO TABLE @DATA(lt_dados)
+    FROM ekko AS a INNER JOIN ekpo AS b
+    ON a~ebeln EQ b~ebeln
+    WHERE a~ebeln IN @s_ebeln.
+
+  SORT: lt_dados BY ebeln.
+
+  LOOP AT lt_dados INTO DATA(lw_dados).
+
+    wa_output-ebeln = lw_dados-ebeln.
+    wa_output-ebelp = lw_dados-ebelp.
+    wa_output-matnr = lw_dados-matnr.
+    wa_output-txz01 = lw_dados-txz01.
+    wa_output-menge = lw_dados-menge.
+    wa_output-meins = lw_dados-meins.
+    wa_output-bedat = lw_dados-bedat.
+    wa_output-lifnr = lw_dados-lifnr.
+    wa_output-waers = lw_dados-waers.
+    wa_output-netpr = lw_dados-netpr.
+    wa_output-price = lw_dados-price.
+    wa_output-wkurs = lw_dados-wkurs.
+
+    APPEND wa_output TO it_output.
+
+  ENDLOOP.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+
+END-OF-SELECTION.
+
+FORM zf_estrutura_alv.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'ebeln'.
+  wa_fieldcat-seltext_m = TEXT-r01.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'ebelp'.
+  wa_fieldcat-seltext_m = TEXT-r02.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'matnr'.
+  wa_fieldcat-seltext_m = TEXT-r03.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'txz01'.
+  wa_fieldcat-seltext_m = TEXT-r04.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'menge'.
+  wa_fieldcat-seltext_m = TEXT-r05.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'meins'.
+  wa_fieldcat-seltext_m = TEXT-r06.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'bedat'.
+  wa_fieldcat-seltext_m = TEXT-r07.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'lifnr'.
+  wa_fieldcat-seltext_m = TEXT-r08.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'waers'.
+  wa_fieldcat-seltext_m = TEXT-r09.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'netpr'.
+  wa_fieldcat-seltext_m = TEXT-r10.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'price'.
+  wa_fieldcat-seltext_m = TEXT-r11.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = 'wkurs'.
+  wa_fieldcat-seltext_m = TEXT-r12.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  wa_layout-colwidth_optimize = abap_true. "Aumenta célula de acordo com a descrição.
+
+ENDFORM.
+
+FORM zf_exibir_alv .
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      is_layout   = wa_layout
+      it_fieldcat = it_fieldcat
+    TABLES
+      t_outtab    = it_output.
+
+ENDFORM.
