@@ -1,0 +1,238 @@
+*&---------------------------------------------------------------------*
+*& Report Z_RELATORIO_MOOV2
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT z_relatorio_moov2.
+
+*&---------------------------------------------------------------------*
+*&                         TABLES
+*&---------------------------------------------------------------------*
+
+TABLES: mara, eine, eina, lfa1.
+
+*&---------------------------------------------------------------------*
+*&                         TYPES
+*&---------------------------------------------------------------------*
+
+TYPES: BEGIN OF ty_output, "Estrutura Tabela de Saída
+         infnr TYPE eina-infnr,
+         erdat TYPE eina-erdat,
+         lifnr TYPE lfa1-lifnr,
+         name1 TYPE lfa1-name1,
+         matnr TYPE mara-matnr,
+         maktx TYPE makt-maktx,
+         mtart TYPE mara-mtart,
+         mstae TYPE mara-mstae,
+         ekgrp TYPE eine-ekgrp,
+         ekorg TYPE eine-ekorg,
+         matkl TYPE mara-matkl,
+         mwskz TYPE eine-mwskz,
+         werks TYPE eine-werks,
+         meins TYPE mara-meins,
+         netpr TYPE eine-netpr,
+         waers TYPE eine-waers,
+         ebeln TYPE eine-ebeln,
+         datlb TYPE eine-datlb,
+         mark  TYPE c,
+       END OF ty_output,
+
+       BEGIN OF ty_csv,
+         campo(10000) TYPE c,
+       END OF ty_csv.
+
+*&---------------------------------------------------------------------*
+*&                         TABELAS INTERNAS
+*&---------------------------------------------------------------------*
+
+DATA: it_output   TYPE TABLE OF ty_output,
+      it_fieldcat TYPE slis_t_fieldcat_alv,
+      it_csv      TYPE TABLE OF ty_csv.
+
+*&---------------------------------------------------------------------*
+*&                         WORKAREAS
+*&---------------------------------------------------------------------*
+
+DATA: wa_output   TYPE ty_output,
+      wa_fieldcat TYPE slis_fieldcat_alv.
+
+*&---------------------------------------------------------------------*
+*&                         SELECTION-SCREEN
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+
+  SELECT-OPTIONS: s_matnr FOR mara-matnr NO INTERVALS, " Material
+                  s_mtart FOR mara-mtart NO INTERVALS, " Tipo do Material
+                  s_werks FOR eine-werks NO INTERVALS, " Centro
+                  s_matkl FOR mara-matkl NO INTERVALS, " Grupo de Mercadorias
+                  s_mstae FOR mara-mstae NO INTERVALS, " Status do Material
+                  s_infnr FOR eina-infnr NO INTERVALS, " Registro Info
+                  s_lifnr FOR lfa1-lifnr NO INTERVALS, " Fornecedor
+                  s_stcd1 FOR lfa1-stcd1 NO INTERVALS, " CNPJ
+                  s_ekgrp FOR eine-ekgrp NO INTERVALS, " Grupo de Compradores
+                  s_ekorg FOR eine-ekorg NO INTERVALS, " Organização de Compras
+                  s_mwskz FOR eine-mwskz NO INTERVALS. " Código IVA
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+*&---------------------------------------------------------------------*
+*&                         START-OF-SELECTION
+*&---------------------------------------------------------------------*
+START-OF-SELECTION.
+
+  PERFORM zf_seleciona_dados.
+
+*&---------------------------------------------------------------------*
+*&                         END-OF-SELECTION
+*&---------------------------------------------------------------------*
+
+END-OF-SELECTION.
+
+  PERFORM: zf_monta_fieldcat,
+           zf_exibir_alv.
+
+*&---------------------------------------------------------------------*
+*& Form zf_seleciona_dados
+*&---------------------------------------------------------------------*
+
+FORM zf_seleciona_dados.
+
+  SELECT mara~matnr, " Material
+         mara~mtart, " Tipo do Material
+         mara~mstae, " Status do Material
+         mara~matkl, " Grupo de Mercadorias
+         mara~meins, " UMB
+         makt~maktx, " Descrição
+         eina~infnr, " Reg Info
+         eina~erdat, " Dt. Criação
+         lfa1~lifnr, " Fornecedor
+         lfa1~name1, " Descrição
+         eine~ekgrp, " G.Compradores
+         eine~ekorg, " Org. Compras
+         eine~mwskz, " IVA
+         eine~werks, " Centro
+         eine~netpr, " Preço líquido
+         eine~waers, " Moeda
+         eine~ebeln, " Doc. Compra
+         eine~datlb  " Dt Pedido
+         INTO TABLE @DATA(lt_dados)
+         FROM mara INNER JOIN makt
+         ON mara~matnr EQ makt~matnr
+         INNER JOIN eina
+         ON mara~matnr EQ eina~matnr
+         INNER JOIN lfa1
+         ON eina~lifnr EQ lfa1~lifnr
+         INNER JOIN eine
+         ON lfa1~werks EQ eine~werks
+         WHERE mara~matnr IN @s_matnr.
+
+  SORT: lt_dados BY matnr.
+
+  LOOP AT lt_dados INTO DATA(lw_dados).
+
+    wa_output-matnr = lw_dados-matnr.
+    wa_output-mtart = lw_dados-mtart.
+    wa_output-mstae = lw_dados-mstae.
+    wa_output-matkl = lw_dados-matkl.
+    wa_output-meins = lw_dados-meins.
+    wa_output-maktx = lw_dados-maktx.
+    wa_output-infnr = lw_dados-infnr.
+    wa_output-erdat = lw_dados-erdat.
+    wa_output-lifnr = lw_dados-lifnr.
+    wa_output-name1 = lw_dados-name1.
+    wa_output-ekgrp = lw_dados-ekgrp.
+    wa_output-ekorg = lw_dados-ekorg.
+    wa_output-mwskz = lw_dados-mwskz.
+    wa_output-werks = lw_dados-werks.
+    wa_output-netpr = lw_dados-netpr.
+    wa_output-waers = lw_dados-waers.
+    wa_output-ebeln = lw_dados-ebeln.
+    wa_output-datlb = lw_dados-datlb.
+
+    APPEND wa_output TO it_output.
+
+  ENDLOOP.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  ZF_MONTA_FIELDCAT
+*&---------------------------------------------------------------------*
+FORM zf_monta_fieldcat .
+
+  PERFORM zf_adiciona_campo: USING 'INFNR' TEXT-r01,
+                             USING 'ERDAT' TEXT-r02,
+                             USING 'LIFNR' TEXT-r03,
+                             USING 'NAME1' TEXT-r04,
+                             USING 'MATNR' TEXT-r05,
+                             USING 'MAKTX' TEXT-r06,
+                             USING 'MTART' TEXT-r07,
+                             USING 'MSTAE' TEXT-r08,
+                             USING 'EKGRP' TEXT-r09,
+                             USING 'EKORG' TEXT-r10,
+                             USING 'MATKL' TEXT-r11,
+                             USING 'MWSKZ' TEXT-r12,
+                             USING 'WERKS' TEXT-r13,
+                             USING 'MEINS' TEXT-r14,
+                             USING 'NETPR' TEXT-r15,
+                             USING 'WAERS' TEXT-r16,
+                             USING 'EBELN' TEXT-r17,
+                             USING 'DATLB' TEXT-r18.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form zf_exibir_alv
+*&---------------------------------------------------------------------*
+
+FORM zf_exibir_alv .
+
+  DATA: wa_layout   TYPE slis_layout_alv.
+
+  wa_layout-box_fieldname     = 'MARK'.
+  wa_layout-colwidth_optimize = abap_true.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program       = sy-repid
+      is_layout                = wa_layout
+      it_fieldcat              = it_fieldcat
+      i_save                   = 'A'
+      i_callback_pf_status_set = 'ZF_STATUS_GUI'
+      i_callback_user_command  = 'ZF_USER_COMMAND'      " Informando o nome de dois forms que serão chamados pelo ALV.
+    TABLES
+      t_outtab                 = it_output
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+
+  IF sy-subrc <> 0.
+    MESSAGE s208(00) DISPLAY LIKE 'E' WITH 'Erro ao exibir relatório ALV.'.
+    LEAVE LIST-PROCESSING.                              " Volta a tela inicial do programa.
+  ENDIF.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  ZF_STATUS_GUI
+*&---------------------------------------------------------------------*
+FORM zf_status_gui USING rt_extab TYPE slis_t_extab.
+
+  SET PF-STATUS 'ZSTATUS_GUI'.
+
+ENDFORM.
+
+
+*&---------------------------------------------------------------------*
+*& Form zf_adiciona_campo
+*&---------------------------------------------------------------------*
+
+FORM zf_adiciona_campo  USING    p_fieldname
+                                 p_seltext_m.
+
+  CLEAR wa_fieldcat.
+  wa_fieldcat-fieldname = p_fieldname.
+  wa_fieldcat-seltext_m = p_seltext_m.
+  APPEND wa_fieldcat TO it_fieldcat.
+
+  ENDFORM.
